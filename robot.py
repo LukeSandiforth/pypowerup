@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import ctre
-from ctre import WPI_TalonSRX
 import magicbot
 import wpilib
 from networktables import NetworkTables
@@ -33,7 +32,6 @@ class Robot(magicbot.MagicRobot):
     motion: ChassisMotion
     intake_automation: IntakeAutomation
     lifter_automation: LifterAutomation
-
     # Actuators
     chassis: SwerveChassis
     intake: Intake
@@ -77,11 +75,11 @@ class Robot(magicbot.MagicRobot):
 
         """This is to state what channel our xbox controller is on."""
         self.xbox = wpilib.XboxController(0)
-        """This controls the left motor in the intake mechanism."""
-        self.intake_left = WPI_TalonSRX(1)
-        """This controls the right motor in the intake mechanism."""
-        self.intake_right = WPI_TalonSRX(2)
-        """This controls the left arm in the containment mechanism."""
+        """This controls the front section of the intake mechanism, This controls two motors."""
+        self.intake_motor1 = ctre.WPI_TalonSRX(1)
+        """This controls the back section of the intake mechanism, this controls two motors."""
+        self.intake_motor2 = ctre.WPI_TalonSRX(2)
+        """This controls the left arm in the containment mechanism"""
         self.clamp_arm_left = wpilib.Solenoid(0)
         """This controls the right arm in the containment mechanism."""
         self.clamp_arm_right = wpilib.Solenoid(1)
@@ -94,12 +92,16 @@ class Robot(magicbot.MagicRobot):
         """This is the limit switch in the containment mechanism."""
         self.limit_switch = wpilib.DigitalInput(0)
 
+        self.lift_motor = ctre.WPI_TalonSRX(5)
+
+        self.sd = NetworkTables.getTable("SmartDashboard")
+
     def teleopInit(self):
         """Called when teleop starts; optional"""
         self.intake.intake_clamp(False)
         self.intake.intake_push(False)
-        self.extensions(True)  # What is this?
-        self.lift_motor = WPI_TalonSRX(0)
+        # self.extensions(True)  # What is this?
+        self.lift_motor = ctre.WPI_TalonSRX(0)
         self.motion.enabled = False
         self.chassis.set_inputs(0, 0, 0)
 
@@ -121,6 +123,12 @@ class Robot(magicbot.MagicRobot):
             print("Heading sp set")
             self.chassis.set_heading_sp(self.bno055.getAngle() + math.pi)
 
+        self.put_dashboard()
+
+        # self.intake.intake_arm(self.xbox.getBButton())
+        if self.xbox.getPOV() != -1:
+            self.lifter.pov_change(self.xbox.getPOV())
+
         # this is where the joystick inputs get converted to numbers that are sent
         # to the chassis component. we rescale them using the rescale_js function,
         # in order to make their response exponential, and to set a dead zone -
@@ -132,6 +140,9 @@ class Robot(magicbot.MagicRobot):
         self.chassis.set_inputs(vx, vy, vz)
         if self.xbox.getXButtonReleased():
             self.intake_automation.engage()
+
+    def put_dashboard(self):
+        self.sd.putString("default_height", self.lifter.default_height)
 
 
 if __name__ == '__main__':
