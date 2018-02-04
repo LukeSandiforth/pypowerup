@@ -37,6 +37,19 @@ class SwerveChassis:
         self.heading_pid.setContinuous()
         self.heading_pid.enable()
         self.modules = [self.module_a, self.module_b, self.module_c, self.module_d]
+        #
+        # matrix which translates column vector of [x, y] in robot frame of
+        # reference to module [x, y] movement
+        self.A_matrix = np.array([
+            [1, 0],
+            [0, 1],
+            [1, 0],
+            [0, 1],
+            [1, 0],
+            [0, 1],
+            [1, 0],
+            [0, 1]
+            ])
 
         self.odometry_x = 0
         self.odometry_y = 0
@@ -64,29 +77,6 @@ class SwerveChassis:
     def on_enable(self):
         self.bno055.resetHeading()
         self.heading_hold_on()
-
-        # matrix which translates column vector of [x, y] in robot frame of
-        # reference to module [x, y] movement
-        self.A_matrix = np.array([
-            [1, 0],
-            [0, 1],
-            [1, 0],
-            [0, 1],
-            [1, 0],
-            [0, 1],
-            [1, 0],
-            [0, 1]
-            ])
-
-        # figure out the contribution of the robot's overall rotation about the
-        # z axis to each module's movement, and encode that information in a
-        # column vector
-        self.z_axis_adjustment = np.zeros((8, 1))
-        for i, module in enumerate(self.modules):
-            module_dist = math.hypot(module.x_pos, module.y_pos)
-            module_angle = math.atan2(module.y_pos, module.x_pos)
-            self.z_axis_adjustment[i*2, 0] = -module_dist*math.sin(module_angle)
-            self.z_axis_adjustment[i*2+1, 0] = module_dist*math.cos(module_angle)
 
         for module in self.modules:
             module.reset_encoder_delta()
@@ -144,12 +134,6 @@ class SwerveChassis:
             velocity_outputs[i*2, 0] = velocity_x
             velocity_outputs[i*2+1, 0] = velocity_y
             module.reset_encoder_delta()
-
-        z_adj_delta = self.z_axis_adjustment * heading_delta
-        z_adj_vel = self.z_axis_adjustment * self.bno055.getHeadingRate()
-
-        odometry_outputs = odometry_outputs - z_adj_delta
-        velocity_outputs = velocity_outputs - z_adj_vel
 
         delta_x, delta_y = self.robot_movement_from_odometry(odometry_outputs, timestep_average_heading)
         v_x, v_y = self.robot_movement_from_odometry(velocity_outputs, heading)
