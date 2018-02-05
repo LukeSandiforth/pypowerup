@@ -124,4 +124,5 @@ tags
 .idea/
 # file-based project format
 *.iws
-.vscode/
+.deploy_cfg
+test.py

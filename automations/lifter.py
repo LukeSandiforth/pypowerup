@@ -3,7 +3,7 @@ from magicbot import StateMachine, state, timed_state
 from components.lifter import Lifter
 from components.intake import Intake
 
- 
+
 class LifterAutomation(StateMachine):
     lifter: Lifter
     intake: Intake
@@ -22,11 +22,13 @@ class LifterAutomation(StateMachine):
 
     @timed_state(duration=0.5, next_state="reset", must_finish=True)
     def eject(self):
-        """Ejects cube from mechanism as height is reached."""
+        """Ejects cube from mechanism when height is reached."""
         self.intake.intake_clamp(False)
         self.intake.intake_push(True)
 
-    @state(must_finish=True)
+    @state()
     def reset(self):
+        """Resets the rest of the intake mechanism(Kicker)"""
         self.intake.intake_push(False)
-        self.lifter.reset_pos()
+        self.lifter.reset()
+        self.done()

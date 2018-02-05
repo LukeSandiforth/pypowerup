@@ -3,7 +3,9 @@ import numpy as np
 from pyswervedrive.swervechassis import SwerveChassis
 from utilities.bno055 import BNO055
 from utilities.vector_pursuit import VectorPursuit
-from utilities.profile_generator import generate_interpolation_function
+from utilities.profile_generator import generate_trapezoidal_trajectory
+from wpilib import SmartDashboard
+from networktables import NetworkTables
 
 
 class ChassisMotion:
@@ -12,17 +14,17 @@ class ChassisMotion:
     bno055: BNO055
 
     # heading motion feedforward/back gains
-    kPh = 2  # proportional gain
+    kPh = 3  # proportional gain
     kVh = 1  # feedforward gain
     kIh = 0  # integral gain
-    kDh = 0  # derivative gain
+    kDh = 10  # derivative gain
 
     def __init__(self):
         self.enabled = False
         self.pursuit = VectorPursuit()
 
     def setup(self):
-        self.pursuit.set_motion_params(4.0, 4, -4)
+        self.pursuit.set_motion_params(4.0, 4, -3)
 
     def set_waypoints(self, waypoints: np.ndarray):
         """ Pass as set of waypoints for the chassis to follow.
@@ -41,10 +43,9 @@ class ChassisMotion:
 
     def update_heading_profile(self):
         self.current_seg_distance = np.linalg.norm(self.pursuit.segment)
-        heading_start = self.bno055.getAngle()
         heading_end = self.waypoints[self.waypoint_idx+1][2]
-        self.heading_profile_function = generate_interpolation_function(
-                heading_start, heading_end, self.current_seg_distance/2)
+        self.heading_profile = generate_trapezoidal_trajectory(self.bno055.getAngle(), self.bno055.getHeadingRate(),
+                                                               heading_end, 0, 3, 3, -3, 50)
         self.last_heading_error = 0
 
     def disable(self):
@@ -56,7 +57,7 @@ class ChassisMotion:
     def execute(self):
         if self.enabled:
             self.chassis.field_oriented = True
-            self.chassis.hold_heading = True
+            self.chassis.hold_heading = False
 
             odom_pos = np.array([self.chassis.odometry_x, self.chassis.odometry_y])
             odom_vel = np.array([self.chassis.odometry_x_vel, self.chassis.odometry_y_vel])
@@ -74,8 +75,8 @@ class ChassisMotion:
             if seg_end_dist < 0:
                 seg_end_dist = 0
 
-            if seg_end_dist < self.current_seg_distance / 2:
-                heading_seg = self.heading_profile_function(seg_end_dist, speed)
+            if self.heading_profile:
+                heading_seg = self.heading_profile.pop(0)
             else:
                 heading_seg = (self.waypoints[self.waypoint_idx+1][2], 0, 0)
 
@@ -106,8 +107,15 @@ class ChassisMotion:
             # self.chassis.set_velocity_heading(vx, vy, self.waypoints[self.waypoint_idx+1][2])
             self.chassis.set_inputs(vx, vy, heading_output)
 
+            SmartDashboard.putNumber('vector_pursuit_heading', direction_of_motion)
+            SmartDashboard.putNumber('vector_pursuit_speed', speed_sp)
+            NetworkTables.flush()
+
             if over:
+                print("Motion over")
                 self.enabled = False
+                if self.waypoints[-1][3] == 0:
+                    self.chassis.set_inputs(0, 0, 0)
 
     @property
     def waypoint_idx(self):
