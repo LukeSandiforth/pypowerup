@@ -3,10 +3,6 @@
 import ctre
 import magicbot
 import wpilib
-<<<<<<< HEAD
-from networktables import NetworkTables
-=======
->>>>>>> 623e55a67306cef6c09d6d5b3ae3dd7f62035f09
 import numpy as np
 from automations.intake import IntakeAutomation
 from automations.lifter import LifterAutomation
@@ -33,10 +29,6 @@ class Robot(magicbot.MagicRobot):
     motion: ChassisMotion
     intake_automation: IntakeAutomation
     lifter_automation: LifterAutomation
-<<<<<<< HEAD
-=======
-
->>>>>>> 623e55a67306cef6c09d6d5b3ae3dd7f62035f09
     # Actuators
     chassis: SwerveChassis
     intake: Intake
